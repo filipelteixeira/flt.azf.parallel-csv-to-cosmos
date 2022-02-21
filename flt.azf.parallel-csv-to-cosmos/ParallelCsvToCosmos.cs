@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Diagnostics;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -13,9 +14,15 @@ namespace flt.azf.parallel_csv_to_cosmos
     public static class ParallelCsvToCosmos
     {
 
-        private const string filename = "5m Sales Records.csv";
-        private const string connectionString = "DefaultEndpointsProtocol=https;AccountName=devstorageexample;AccountKey=QDUaYG/X8WzAcZSlZ/0i7kjhX6ozzS36mUz1W/Ln4n46eTgKxVhuGonYIZwms2Q8AhJdBSurIlibTtv1ZhHZKQ==;EndpointSuffix=core.windows.net";
-        private const string containerName = "dev";
+        private static readonly string ProcessFileName = ConfigurationManager.AppSettings["ProcessFileName"];
+
+        private static readonly string StorageConnectionString = ConfigurationManager.AppSettings["StorageConnectionString"];
+        private static readonly string StorageContainerName = ConfigurationManager.AppSettings["StorageContainerName"];
+
+        private static readonly string CosmosAuthorizationKey = ConfigurationManager.AppSettings["CosmosAuthorizationKey"];
+        private static readonly string CosmosUrl = ConfigurationManager.AppSettings["CosmosUrl"];
+        private static readonly string CosmosDatabaseName = ConfigurationManager.AppSettings["CosmosDatabaseName"];
+        private static readonly string CosmosContainerName = ConfigurationManager.AppSettings["CosmosContainerName"];
 
         [FunctionName("ParallelCsvToCosmos")]
         public static async Task<List<string>> RunOrchestrator(
@@ -29,7 +36,7 @@ namespace flt.azf.parallel_csv_to_cosmos
 
             log.LogInformation($"[ParallelCsvToCosmos] Processing CSV file");
 
-            var filenames = new StorageManager(log).ProcessCsv(filename, connectionString, containerName);
+            var filenames = new StorageManager(log).ProcessCsv(ProcessFileName, StorageConnectionString, StorageContainerName);
 
             log.LogInformation($"[ParallelCsvToCosmos] Csv file processed, generated {filenames.Count} splits");
 
@@ -62,15 +69,10 @@ namespace flt.azf.parallel_csv_to_cosmos
             Stopwatch stopwatch = Stopwatch.StartNew();
             long startMilliseconds = stopwatch.ElapsedMilliseconds;
 
-            string endpointUrl = "https://<your-account>.documents.azure.com:443/";
-            string authorizationKey = "<your-account-key>";
-            string databaseName = "Sales";
-            string containerName = "SalesDump";
-
             var storageManager = new StorageManager(log);
-            var cosmosManager = new CosmosManager(log, endpointUrl, authorizationKey, databaseName, containerName);
+            var cosmosManager = new CosmosManager(log, CosmosUrl, CosmosAuthorizationKey, CosmosDatabaseName, CosmosContainerName);
 
-            cosmosManager.UploadData(storageManager.TransformCsv(filename, connectionString, containerName));
+            cosmosManager.UploadData(storageManager.TransformCsv(filename, StorageConnectionString, StorageContainerName));
 
             stopwatch.Stop();
             TimeSpan ts = stopwatch.Elapsed;
