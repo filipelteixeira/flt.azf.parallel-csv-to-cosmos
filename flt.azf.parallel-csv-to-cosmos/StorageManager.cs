@@ -59,7 +59,7 @@ internal class StorageManager
                     csv.AppendLine(reader.ReadLine());
                 }
 
-                var csvFilename = "toprocess_" + filename.Split()[0] + "_" + fileId++ + ".csv";
+                var csvFilename = "toprocess_" + filename.Split('.')[0] + "_" + fileId++ + ".csv";
 
                 File.WriteAllText(csvFilename, csv.ToString());
 
