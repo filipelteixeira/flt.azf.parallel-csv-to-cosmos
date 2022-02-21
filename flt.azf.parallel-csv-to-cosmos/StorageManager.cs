@@ -19,7 +19,9 @@ internal class StorageManager
 
     public List<string> ProcessCsv(string filename, string connectionString, string containerName)
     {
-        var filenames = new List<string>();
+        Stopwatch stopwatch = Stopwatch.StartNew();
+
+        log.LogInformation($"[StorageManager.ProcessCsv] Removing old file partitions");
 
         // Retrieve storage account from connection string.
         BlobContainerClient container = new(connectionString, containerName);
@@ -35,9 +37,13 @@ internal class StorageManager
             }
         }
 
+        // List of new processed csvs
+        var filenames = new List<string>();
+
         // Read CSV line by line and build smaller uploadable csvs
         using (var stream = container.GetBlobClient(filename).OpenRead())
         {
+
             log.LogInformation($"[StorageManager.ProcessCsv] Loading file {filename} read stream");
 
             using StreamReader reader = new(stream);
@@ -48,8 +54,7 @@ internal class StorageManager
 
             while (!reader.EndOfStream)
             {
-                Stopwatch stopwatch = Stopwatch.StartNew();
-                long startMilliseconds = stopwatch.ElapsedMilliseconds;
+                Stopwatch fileStopwatch = Stopwatch.StartNew();
 
                 var csv = new StringBuilder();
                 csv.AppendLine(header);
@@ -69,23 +74,26 @@ internal class StorageManager
 
                 filenames.Add(csvFilename);
 
-                stopwatch.Stop();
-                TimeSpan ts = stopwatch.Elapsed;
-                log.LogInformation($"[StorageManager.ProcessCsv] Processed file {csvFilename} in {ts.TotalMilliseconds}ms");
+                fileStopwatch.Stop();
+                log.LogInformation($"[StorageManager.ProcessCsv] Processed file {csvFilename} in {fileStopwatch.Elapsed.TotalMilliseconds}ms");
             }
         }
 
-        log.LogInformation($"[StorageManager.ProcessCsv] Processed {filenames.Count} partition files");
+        stopwatch.Stop();
+        log.LogInformation($"[StorageManager.ProcessCsv] Processed {filenames.Count} partition files in {stopwatch.Elapsed.TotalMilliseconds}ms");
 
         return filenames;
     }
     public List<DataModel> TransformCsv(string filename, string connectionString, string containerName)
     {
+        Stopwatch stopwatch = Stopwatch.StartNew();
+
+        log.LogInformation($"[StorageManager.TransformCsv] Processing CSV into memory object data model");
+
         var data = new List<DataModel>();
 
         // Retrieve storage account from connection string.
         BlobContainerClient container = new(connectionString, containerName);
-
 
         // Read CSV line by line and build smaller uploadable csvs
         using (var stream = container.GetBlobClient(filename).OpenRead())
@@ -107,6 +115,9 @@ internal class StorageManager
                 });
             }
         }
+
+        stopwatch.Stop();
+        log.LogInformation($"[StorageManager.ProcessCsv] Processed {data.Count} objects in {stopwatch.Elapsed.TotalMilliseconds}ms");
 
         return data;
     }
