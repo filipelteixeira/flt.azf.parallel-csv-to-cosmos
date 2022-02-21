@@ -43,10 +43,10 @@ namespace flt.azf.parallel_csv_to_cosmos
             log.LogInformation($"[ParallelCsvToCosmos] Initiating workers");
 
             // Start workers with multiple files
-            var parallelTasks = new List<Task<int>>();
+            var parallelTasks = new List<Task<bool>>();
             for (int i = 0; i < filenames.Count; i++)
             {
-                Task<int> task = context.CallActivityAsync<int>("ParallelCsvToCosmos_ProcessData", filenames[i]);
+                Task<bool> task = context.CallActivityAsync<bool>("ParallelCsvToCosmos_ProcessData", filenames[i]);
                 parallelTasks.Add(task);
             }
 
