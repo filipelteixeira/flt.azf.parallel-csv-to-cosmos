@@ -1,34 +1,42 @@
 ﻿using Azure.Storage.Blobs;
+using flt.azf.parallel_csv_to_cosmos.Models;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
-namespace flt.azf.parallel_csv_to_cosmos;
+namespace flt.azf.parallel_csv_to_cosmos.Services;
 
-internal class StorageManager
+internal class StorageService
 {
-    private ILogger log;
+    private readonly ILogger log;
+    private readonly string storageConnectionString = Environment.GetEnvironmentVariable("StorageConnectionString", EnvironmentVariableTarget.Process);
+    private readonly string storageContainerName = Environment.GetEnvironmentVariable("StorageContainerName", EnvironmentVariableTarget.Process);
 
-    internal StorageManager(ILogger log)
+    internal StorageService(ILogger log)
     {
         this.log = log;
     }
 
-    public List<string> ProcessCsv(string filename, string connectionString, string containerName)
+    public async Task<List<string>> ProcessCsv(string filename)
     {
         Stopwatch stopwatch = Stopwatch.StartNew();
 
         log.LogInformation($"[StorageManager.ProcessCsv] Removing old file partitions");
 
         // Retrieve storage account from connection string.
-        BlobContainerClient container = new(connectionString, containerName);
+        BlobContainerClient container = new(storageConnectionString, storageContainerName);
+
+        // for debug only
+        //return container.GetBlobs().ToList().Where(x => x.Name.Contains("toprocess_")).Select(x => x.Name).ToList();
 
         // Clean old partitions
         log.LogInformation($"[StorageManager.ProcessCsv] Removing old file partitions");
-        foreach (var blob in container.GetBlobs())
+        await foreach (var blob in container.GetBlobsAsync())
         {
             if (blob.Name.Contains("toprocess_"))
             {
@@ -41,7 +49,7 @@ internal class StorageManager
         var filenames = new List<string>();
 
         // Read CSV line by line and build smaller uploadable csvs
-        using (var stream = container.GetBlobClient(filename).OpenRead())
+        using (var stream = await container.GetBlobClient(filename).OpenReadAsync())
         {
 
             log.LogInformation($"[StorageManager.ProcessCsv] Loading file {filename} read stream");
@@ -59,18 +67,17 @@ internal class StorageManager
                 var csv = new StringBuilder();
                 csv.AppendLine(header);
 
-                for (int i = 0; i < 100000 && !reader.EndOfStream; i++)
+                for (int i = 0; i < 10000 && !reader.EndOfStream; i++)
                 {
                     csv.AppendLine(reader.ReadLine());
                 }
 
                 var csvFilename = "toprocess_" + filename.Split('.')[0] + "_" + fileId++ + ".csv";
 
-                File.WriteAllText(csvFilename, csv.ToString());
-
-                container.GetBlobClient(csvFilename).Upload(csvFilename);
-
-                File.Delete(csvFilename);
+                using (var fileStream = new MemoryStream(Encoding.UTF8.GetBytes(csv.ToString())))
+                {
+                    container.GetBlobClient(csvFilename).Upload(fileStream);
+                }
 
                 filenames.Add(csvFilename);
 
@@ -84,19 +91,17 @@ internal class StorageManager
 
         return filenames;
     }
-    public List<DataModel> TransformCsv(string filename, string connectionString, string containerName)
+    public async Task<List<DataModel>> TransformCsv(string filename)
     {
         Stopwatch stopwatch = Stopwatch.StartNew();
-
-        log.LogInformation($"[StorageManager.TransformCsv] Processing CSV into memory object data model");
 
         var data = new List<DataModel>();
 
         // Retrieve storage account from connection string.
-        BlobContainerClient container = new(connectionString, containerName);
+        BlobContainerClient container = new(storageConnectionString, storageContainerName);
 
         // Read CSV line by line and build smaller uploadable csvs
-        using (var stream = container.GetBlobClient(filename).OpenRead())
+        using (var stream = await container.GetBlobClient(filename).OpenReadAsync())
         {
             using StreamReader reader = new(stream);
 
@@ -107,7 +112,7 @@ internal class StorageManager
                 var values = line.Split(',');
                 data.Add(new DataModel()
                 {
-                    Id = Guid.NewGuid().ToString(),
+                    id = Guid.NewGuid().ToString(),
                     Country = values[0],
                     ItemType = values[1],
                     Region = values[2],
@@ -117,7 +122,6 @@ internal class StorageManager
         }
 
         stopwatch.Stop();
-        log.LogInformation($"[StorageManager.ProcessCsv] Processed {data.Count} objects in {stopwatch.Elapsed.TotalMilliseconds}ms");
 
         return data;
     }
