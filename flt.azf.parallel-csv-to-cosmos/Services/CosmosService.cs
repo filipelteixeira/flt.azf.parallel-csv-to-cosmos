@@ -1,12 +1,10 @@
 ﻿using flt.azf.parallel_csv_to_cosmos.Models;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace flt.azf.parallel_csv_to_cosmos.Services;

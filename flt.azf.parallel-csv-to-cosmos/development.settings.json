@@ -1,0 +1,19 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet",
+    "AzureWebJobsStorage": "DefaultEndpointsProtocol=https;AccountName=<accname>;AccountKey=<acckey>;EndpointSuffix=core.windows.net",
+    "ProcessFileName": "<filename>",
+    "StorageConnectionString": "DefaultEndpointsProtocol=https;AccountName=<accname>;AccountKey=<acckey>;EndpointSuffix=core.windows.net",
+    "StorageContainerName": "<storageContainerName>",
+    "CosmosAuthorizationKey": "<cosmosKey>",
+    "CosmosUrl": "https://<cosmosServer>.documents.azure.com:443/",
+    "CosmosDatabaseName": "<database>",
+    "CosmosContainerName": "<container>"
+  },
+  "Host": {
+    "LocalHttpPort": 7071,
+    "CORS": "*",
+    "CORSCredentials": false
+  }
+}
